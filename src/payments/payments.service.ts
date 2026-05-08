@@ -3,6 +3,7 @@ import {
   Logger,
   ConflictException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { getHelipagosApiBaseUrl } from 'src/config/env.config';
@@ -84,7 +85,17 @@ export class PaymentsService {
     }
   }
 
-  async webhook(webhookDto: WebhookDto): Promise<object> {
+  async webhook(
+    webhookDto: WebhookDto,
+    webhookSecret?: string,
+  ): Promise<object> {
+    const expectedWebhookSecret = process.env.WEBHOOK_SECRET?.trim();
+    if (
+      expectedWebhookSecret &&
+      webhookSecret?.trim() !== expectedWebhookSecret
+    ) {
+      throw new UnauthorizedException('Secret de webhook incorrecto');
+    }
     const payment = await this.paymentsRepository.findPaymentByIdSp(
       webhookDto.id_sp,
     );

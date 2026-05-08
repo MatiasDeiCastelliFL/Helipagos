@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Get,
+  Headers,
   Param,
   ParseIntPipe,
   Post,
@@ -32,8 +33,11 @@ export class PaymentsController {
   }
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
-  webhook(@Body() webhookDto: WebhookDto): Promise<object> {
-    return this.paymentsService.webhook(webhookDto);
+  webhook(
+    @Body() webhookDto: WebhookDto,
+    @Headers('x-webhook-secret') webhookSecret?: string,
+  ): Promise<object> {
+    return this.paymentsService.webhook(webhookDto, webhookSecret);
   }
 
   @Put(':id')

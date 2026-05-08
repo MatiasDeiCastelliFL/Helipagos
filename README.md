@@ -155,6 +155,64 @@ Flujo HTTP: `createPayment` y `getPayment` delegan errores de Axios en `handleHe
 
 Defini `BASE` (bash: `export BASE=http://localhost:3009`; PowerShell: `$env:BASE="http://localhost:3009"`). Opcional: `-w "\nHTTP:%{http_code}\n"` al final del `curl` para ver el codigo HTTP.
 
+### Guia explicita por endpoint (paso a paso para principiantes)
+
+Antes de probar:
+- Asegurate de que la API este corriendo en `http://localhost:3009`.
+- Si configuraste `WEBHOOK_SECRET` en `.env`, vas a tener que enviar el header `X-Webhook-Secret` en `POST /api/payments/webhook`.
+
+**A) Crear solicitud de pago** (`POST /api/payments`)
+- URL: `POST $BASE/api/payments`
+- Que enviar en el body: `importe`, `fecha_vto`, `recargo`, `fecha_2do_vto`, `descripcion`, `referencia_externa` (unica), `url_redirect`, `webhook`, `qr`.
+- Importante sobre `webhook`: debe ser una URL publica tuya (ejemplo: `https://<tu-subdominio>.trycloudflare.com/api/payments/webhook`).
+- Error comun: usar fechas vencidas o repetir `referencia_externa`.
+
+**B) Consultar solicitud** (`GET /api/payments/:id`)
+- URL: `GET $BASE/api/payments/{id}`
+- Ese `id` es el ID local de tu BD (`payments.id`), no el `id_sp` de Helipagos.
+- No lleva body.
+
+**C) Recibir webhook** (`POST /api/payments/webhook`)
+- URL: `POST $BASE/api/payments/webhook`
+- Body minimo: `id_sp`, `estado`, `referencia_externa`.
+- `estado` esperado para acreditar: `PROCESADA`.
+- Si existe `WEBHOOK_SECRET`, enviar header: `X-Webhook-Secret: <tu_valor_en_.env>`.
+- Este endpoint no usa `:id` en la URL; identifica por `id_sp` dentro del JSON.
+
+**D) Cancelar solicitud** (`PUT /api/payments/:id`)
+- URL: `PUT $BASE/api/payments/{id}`
+- Ese `id` tambien es local (PK de `payments`).
+- No lleva body.
+- Solo permite cancelar si el estado local esta en `GENERADA` o `RECHAZADA`.
+
+### Webhook publico con Cloudflare Tunnel (opcional)
+
+Si queres que Helipagos notifique a tu API local desde Internet, podes exponerla temporalmente con `cloudflared`:
+
+```bash
+cloudflared tunnel --url http://localhost:3009
+```
+
+`cloudflared` mostrara una URL publica temporal como `https://<tu-subdominio>.trycloudflare.com`.
+
+Con el prefijo global `api`, el webhook completo que debes enviar al crear el pago es:
+
+```text
+https://<tu-subdominio>.trycloudflare.com/api/payments/webhook
+```
+
+Notas:
+- La URL de `trycloudflare` cambia cada vez que reinicias el tunel.
+- Mantene la terminal del tunel abierta mientras haces las pruebas.
+- No uses una URL fija de ejemplo en produccion.
+
+Para la evaluacion:
+- Voy a exponer publicamente el endpoint `POST /api/payments/webhook` con Cloudflare Tunnel.
+- Durante la ventana de evaluacion voy a mantener la API y el tunel activos.
+- La URL publica vigente de `trycloudflare` se comparte al evaluador al inicio de la prueba.
+- Esa URL se va a mantener encendida hasta finalizar la evaluacion (si debo reiniciar el tunel, comparto inmediatamente la nueva URL).
+- El endpoint de webhook a compartir siempre tiene este formato: `https://<tu-subdominio>.trycloudflare.com/api/payments/webhook`.
+
 **1. Crear pago**
 
 ```bash
@@ -171,7 +229,7 @@ curl --request POST \
     "referencia_externa": "TEST",
     "referencia_externa_2": "TEST",
     "url_redirect": "https://www.helipagos.com",
-    "webhook": "https://webhook.site/d8cced7a-2b90-4a21-930a-c52eaff1cd51",
+    "webhook": "https://<tu-subdominio>.trycloudflare.com/api/payments/webhook",
     "qr": true
 }'
 ```
@@ -191,6 +249,7 @@ Cuerpo exitoso: `local` (registro BD), `helipagos` (objeto normalizado si Helipa
 ```bash
 curl -s -X POST "$BASE/api/payments/webhook" \
   -H "Content-Type: application/json" \
+  -H "X-Webhook-Secret: <tu_webhook_secret>" \
   -d "{\"id_sp\":123456,\"estado\":\"PROCESADA\",\"referencia_externa\":\"REF-UNICA-001\",\"medio_pago\":\"Visa\",\"importe_abonado\":\"20\",\"fecha_importe\":\"2026-05-08 10:00:00\"}"
 ```
 
@@ -254,7 +313,7 @@ Bloques y variables clave:
   - `URL_TEST`, `URL_PRODUCTION`: base URL Helipagos (sin slash final).
   - `URL_PREFIX`: prefijo de Helipagos (en homologacion suele ser `api`).
   - `TOKEN_SECRET`: token Bearer enviado en `Authorization`.
-  - `WEBHOOK_SECRET`: reservado para validacion/firma de webhook si agregas esa capa.
+  - `WEBHOOK_SECRET`: secreto para validar `X-Webhook-Secret` en `POST /api/payments/webhook` (si esta definido en `.env`, el header pasa a ser obligatorio).
 
 - **Seguridad local**
   - `ENCRYPTION_SECRET`: clave para cifrar `codigo_barra` y `qr_data` antes de guardar en BD.
@@ -347,12 +406,12 @@ Ambiente (local/docker + URL webhook publico): Local/Docker, http://localhost:30
 Herramienta: autocannon
 Comando usado: npx autocannon -m POST -H "Content-Type: application/json" -i body.json -c 60 -d 5 http://localhost:3009/api/payments/webhook
 Total requests: 11k requests en 5.03s (aprox.)
-2xx: sin registros de non-2xx en la salida de la corrida
+2xx: sin registros de non-2xx en la salida de la corrida (corrida limpia)
 4xx: 0
 5xx: 0
 Errores de red/timeouts: 0
 Estado final en BD del id_sp probado: PROCESADA
-Observaciones: prueba concurrente con 60 conexiones durante 5 segundos, latencia promedio 25.77 ms, sin errores reportados por autocannon.
+Observaciones: prueba concurrente con 60 conexiones durante 5 segundos, latencia promedio 25.77 ms y rendimiento promedio de 2280.81 req/s, sin errores reportados por autocannon.
 ```
 
 ### Como validar manualmente el escenario 503 (Helipagos caido / timeout)

@@ -16,13 +16,13 @@ Antes de comenzar, asegurate de tener instalado:
 
 Podés descargarlo desde el sitio oficial:
 
-[Node.js]([https://nodejs.org/?utm_source=chatgpt.com](https://nodejs.org/es/download))
+[Node.js](https://nodejs.org/es/download)
 
 ## Descargar Git
 
 Podés descargar Git desde:
 
-[Git SCM]([https://git-scm.com/downloads?utm_source=chatgpt.com](http://git-scm.com/))
+[Git SCM](https://git-scm.com/downloads)
 
 ## Verificar instalación
 

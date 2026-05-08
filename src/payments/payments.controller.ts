@@ -5,7 +5,9 @@ import {
   HttpCode,
   HttpStatus,
   Get,
+  Headers,
   Param,
+  ParseIntPipe,
   Post,
 } from '@nestjs/common';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -26,14 +28,16 @@ export class PaymentsController {
 
   @Get(':id')
   @HttpCode(HttpStatus.OK)
-  getPayment(@Param() getPaymentDto: GetPaymentDto): Promise<object> {
-    return this.paymentsService.getPayment(getPaymentDto);
+  getPayment(@Param('id', ParseIntPipe) id: number) {
+    return this.paymentsService.getPayment(id);
   }
-
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
-  webhook(@Body() webhookDto: WebhookDto): Promise<object> {
-    return this.paymentsService.webhook(webhookDto);
+  webhook(
+    @Body() webhookDto: WebhookDto,
+    @Headers('x-webhook-secret') webhookSecret?: string,
+  ): Promise<object> {
+    return this.paymentsService.webhook(webhookDto, webhookSecret);
   }
 
   @Put(':id')

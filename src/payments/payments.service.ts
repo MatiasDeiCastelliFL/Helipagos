@@ -3,6 +3,7 @@ import {
   Logger,
   ConflictException,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 import { getHelipagosApiBaseUrl } from 'src/config/env.config';
@@ -14,7 +15,6 @@ import {
 import { VerifyCreateResponsePaymentDto } from './dto/create-verify.dto';
 import { fechaValidate } from 'src/config/validate/validate';
 import { PaymentsRepository } from './repositories/payments.repository';
-import { GetPaymentDto } from './dto/get-payment.dto';
 import { WebhookDto } from './dto/webhook';
 import { normalizeHelipagosConsultaBody } from './dto/helipagos-consulta.dto';
 import { CancelPaymentDto } from './dto/cancel-payment.dto';
@@ -55,22 +55,20 @@ export class PaymentsService {
     }
   }
 
-  async getPayment(getPaymentDto: GetPaymentDto): Promise<object> {
-    const idNumber = Number(getPaymentDto.id);
-    if (!Number.isInteger(idNumber)) {
-      throw new ConflictException('El id no es un número válido');
-    }
-    const payment = await this.paymentsRepository.findPaymentById(idNumber);
+  async getPayment(id: number): Promise<object> {
+    const payment = await this.paymentsRepository.findPaymentById(id);
     if (!payment) {
       throw new NotFoundException('Pago no encontrado');
     }
 
     try {
-      const response = await axios.get<unknown>(
-        getHelipagosApiBaseUrl() +
-          '/solicitud_pago/v1/get_solicitud_pago?id=' +
-          payment.id_sp,
-        helipagosConfig,
+      const response = await axios.post<unknown>(
+        getHelipagosApiBaseUrl() + '/solicitud_pago/v1/get_solicitud_pago',
+        {},
+        {
+          ...helipagosConfig,
+          params: { id: payment.id_sp },
+        },
       );
 
       const helipagosItem = normalizeHelipagosConsultaBody(response.data);
@@ -87,7 +85,17 @@ export class PaymentsService {
     }
   }
 
-  async webhook(webhookDto: WebhookDto): Promise<object> {
+  async webhook(
+    webhookDto: WebhookDto,
+    webhookSecret?: string,
+  ): Promise<object> {
+    const expectedWebhookSecret = process.env.WEBHOOK_SECRET?.trim();
+    if (
+      expectedWebhookSecret &&
+      webhookSecret?.trim() !== expectedWebhookSecret
+    ) {
+      throw new UnauthorizedException('Secret de webhook incorrecto');
+    }
     const payment = await this.paymentsRepository.findPaymentByIdSp(
       webhookDto.id_sp,
     );

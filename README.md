@@ -196,6 +196,46 @@ Flujo HTTP: `createPayment` y `getPayment` delegan errores de Axios en `handleHe
 
 Defini `BASE` (bash: `export BASE=http://localhost:3009`; PowerShell: `$env:BASE="http://localhost:3009"`). Opcional: `-w "\nHTTP:%{http_code}\n"` al final del `curl` para ver el codigo HTTP.
 
+# Configuración general
+
+## URL base de la API
+
+`$BASE` representa la URL base de tu API.
+
+Ejemplos:
+
+### Desarrollo local
+
+```txt
+http://localhost:3009
+```
+
+### Producción
+
+```txt
+https://api.tuapp.com
+```
+
+---
+
+## Webhooks
+
+El campo `webhook` debe ser una URL pública accesible desde internet.
+
+Ejemplo:
+
+```txt
+https://<tu-subdominio>.trycloudflare.com/api/payments/webhook
+```
+
+Si configuraste `WEBHOOK_SECRET` en tu archivo `.env`, vas a tener que enviar el siguiente header:
+
+```txt
+X-Webhook-Secret: <tu_valor_en_.env>
+```
+
+---
+
 ### Guia explicita por endpoint (paso a paso para principiantes)
 
 Antes de probar:
@@ -270,7 +310,7 @@ curl --request POST \
     "referencia_externa": "TEST",
     "referencia_externa_2": "TEST",
     "url_redirect": "https://www.helipagos.com",
-    "webhook": "https://<tu-subdominio>.trycloudflare.com/api/payments/webhook",
+    "webhook": "https://matters-issues-penguin-anti.trycloudflare.com/api/payments/webhook",
     "qr": true
 }'
 ```
@@ -286,6 +326,25 @@ curl --request GET \
 Cuerpo exitoso: `local` (registro BD), `helipagos` (objeto normalizado si Helipagos devuelve array con datos u objeto; `null` si responde `[]`), `estadoHelipagos` (prioriza `estado_pago`, si no `estado` del remoto).
 
 **3. Webhook**
+ ⚠️ Importante:
+
+ Antes de ejecutar este request, asegurate de reemplazar:
+
+ ```txt
+ <tu_webhook_secret>
+ ```
+
+ por el mismo valor configurado en tu archivo `.env` dentro de:
+
+ ```env
+ WEBHOOK_SECRET=tu_valor
+ ```
+
+ Si `WEBHOOK_SECRET` no está configurado en el .env, podés omitir el header:
+
+ ```bash
+ -H "X-Webhook-Secret: <tu_webhook_secret>"
+ ```
 
 ```bash
 curl -s -X POST "$BASE/api/payments/webhook" \
@@ -324,11 +383,43 @@ Ademas de las credenciales de PostgreSQL, para este flujo necesitas:
 
 #### Guia rapida del `.env` (que hace cada variable y como evitar fallos)
 
-Parti de `.env.example` y completa valores reales:
+## Configurar variables de entorno
+
+Partí del archivo de ejemplo `.env.example` y creá tu archivo `.env`:
+
+### Linux / macOS
 
 ```bash
 cp .env.example .env
 ```
+
+### Windows (PowerShell)
+
+```powershell
+copy .env.example .env
+```
+
+Luego abrí el archivo `.env` y reemplazá los valores de ejemplo por los reales.
+
+Ejemplo:
+
+```env
+WEBHOOK_SECRET=mi_secreto_real
+TOKEN_SECRET=otro_secreto
+NODE_ENV=development
+```
+
+> ⚠️ Importante:
+>
+> Valores como:
+>
+> ```env
+> your_webhook_secret
+> your_token_secret
+> your_test_url
+> ```
+>
+> son solamente placeholders de ejemplo y deben ser reemplazados todos los campos.
 
 Bloques y variables clave:
 
@@ -472,7 +563,7 @@ La app usa un unico archivo `.env` y la variable `USE_DOCKER` para decidir el ho
 
 ### Inicializacion de la base de datos
 
-- **Con Docker:** al arrancar el servicio `postgres`, las variables `POSTGRES_USER`, `POSTGRES_PASSWORD` y `POSTGRES_DB` del `.env` crean usuario y base inicial; no hace falta un `CREATE DATABASE` manual para esa demo.
+- **Con Docker:** al arrancar el servicio `postgres`, las variables `POSTGRES_USER`, `POSTGRES_PASSWORD` y `POSTGRES_DB` del `.env` crean usuario y base inicial; no hace falta un `CREATE DATABASE` manual para esta demo.
 - **Esquema y tablas:** la primera vez que Nest se conecta con `PRODUCTION !== 'true'`, TypeORM **sincroniza** el esquema desde `payment.entity.ts` y el resto de entities cargadas (`synchronize` en `src/app.module.ts`). No se incluye un `init.sql` separado: el modelo vivo es el codigo.
 - **Solo PostgreSQL vacio:** basta con que exista la base configurada en `DB_NAME` (en compose suele coincidir con `POSTGRES_DB`); las tablas aparecen al iniciar la API.
 

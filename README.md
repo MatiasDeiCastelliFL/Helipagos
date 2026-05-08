@@ -155,7 +155,6 @@ Defini `BASE` (bash: `export BASE=http://localhost:3009`; PowerShell: `$env:BASE
 ```bash
 curl --request POST \
   --url http://localhost:3009/api/payments \
-  --header 'Authorization: Bearer + Token' \
   --header 'Content-Type: application/json' \
   --header 'User-Agent: insomnia/12.5.0' \
   --data '{
@@ -177,7 +176,6 @@ curl --request POST \
 ```bash
 curl --request GET \
   --url "$BASE/api/payments/1" \
-  --header 'Authorization: Bearer + Token' \
   --header 'User-Agent: insomnia/12.5.0'
 ```
 
@@ -200,7 +198,6 @@ curl -s -X POST "$BASE/api/payments/webhook" \
 ```bash
 curl --request PUT \
   --url http://localhost:3009/api/payments/1 \
-  --header 'Authorization: Bearer + Token' \
   --header 'User-Agent: insomnia/12.5.0'
 ```
 

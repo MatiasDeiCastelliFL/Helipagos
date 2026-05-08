@@ -546,42 +546,6 @@ Mejoras posibles sobre la base actual (no bloquean la demo; sirven para evolucio
 4. **Observabilidad:** health checks (`/health`), correlacion de `id_sp` en logs estructurados, metricas opcionales.
 5. **Resiliencia:** reintentos con backoff selectivo en llamadas a Helipagos donde el contrato lo permita; afinar pool de conexiones bajo carga.
 
-## Despliegue
-
-Cuando estes listo para desplegar tu aplicacion NestJS en produccion, hay pasos clave que podes aplicar para asegurar un funcionamiento eficiente. Revisa la [documentacion de despliegue](https://docs.nestjs.com/deployment) para mas informacion.
-
-Si buscas una plataforma en la nube para desplegar tu aplicacion NestJS, revisa [Mau](https://mau.nestjs.com), la plataforma oficial para desplegar aplicaciones NestJS en AWS. Mau simplifica el despliegue y lo hace rapido con pocos pasos:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-Con Mau, podes desplegar tu aplicacion en pocos clics y enfocarte en desarrollar funcionalidades en lugar de administrar infraestructura.
-
-## Recursos
-
-Estos recursos pueden resultarte utiles al trabajar con NestJS:
-
-- Visita la [Documentacion de NestJS](https://docs.nestjs.com) para aprender mas sobre el framework.
-- Para preguntas y soporte, visita el [canal de Discord](https://discord.gg/G7Qnnhy).
-- Para profundizar y practicar, revisa los [cursos en video oficiales](https://courses.nestjs.com/).
-- Despliega tu aplicacion en AWS con [NestJS Mau](https://mau.nestjs.com) en pocos clics.
-- Visualiza el grafo de tu aplicacion e interactua en tiempo real con [NestJS Devtools](https://devtools.nestjs.com).
-- Si necesitas ayuda para tu proyecto (part-time o full-time), revisa el [soporte enterprise](https://enterprise.nestjs.com).
-- Para novedades, segui a Nest en [X](https://x.com/nestframework) y [LinkedIn](https://linkedin.com/company/nestjs).
-- Si buscas trabajo o queres publicar una vacante, visita el [Jobs board](https://jobs.nestjs.com).
-
-## Soporte
-
-Nest es un proyecto open source con licencia MIT. Crece gracias a patrocinadores y a la comunidad que lo apoya. Si queres sumarte, [lee mas aqui](https://docs.nestjs.com/support).
-
-## Contacto
-
-- Autor - [Kamil Mysliwiec](https://twitter.com/kammysliwiec)
-- Sitio web - [https://nestjs.com](https://nestjs.com/)
-- X/Twitter - [@nestframework](https://twitter.com/nestframework)
-
 ## Licencia
 
 Nest tiene licencia [MIT](https://github.com/nestjs/nest/blob/master/LICENSE).

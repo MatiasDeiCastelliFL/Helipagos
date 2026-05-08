@@ -3,10 +3,51 @@
 
 Repositorio base en TypeScript del framework [Nest](https://github.com/nestjs/nest).
 
+
+# Requisitos previos
+
+Antes de comenzar, asegurate de tener instalado:
+
+- Node.js
+- npm
+- Git
+
+## Descargar Node.js
+
+Podés descargarlo desde el sitio oficial:
+
+[Node.js]([https://nodejs.org/?utm_source=chatgpt.com](https://nodejs.org/es/download))
+
+## Descargar Git
+
+Podés descargar Git desde:
+
+[Git SCM]([https://git-scm.com/downloads?utm_source=chatgpt.com](http://git-scm.com/))
+
+## Verificar instalación
+
+Abrí una terminal y ejecutá:
+
+```bash
+node -v
+npm -v
+git --version
+```
+
+
 ## Configuracion del proyecto
 
 ```bash
-$ npm install
+# 1. Crear una carpeta para el proyecto
+  $ mkdir mi-proyecto
+# 2. Entrar a la carpeta creada
+  $ cd mi-proyecto
+# 3. Clonar el repositorio dentro de esa carpeta
+  $ git clone https://github.com/MatiasDeiCastelliFL/Helipagos.git
+# 4. Entrar al proyecto clonado
+  $ cd Helipagos
+# 5. Instalar dependencias
+  $ npm install
 ```
 
 ## Compilar y ejecutar el proyecto

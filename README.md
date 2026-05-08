@@ -236,7 +236,7 @@ X-Webhook-Secret: <tu_valor_en_.env>
 
 ---
 
-### Guia explicita por endpoint (paso a paso para principiantes)
+### Guía paso a paso para entender el funcionamiento de cada endpoint
 
 Antes de probar:
 - Asegurate de que la API este corriendo en `http://localhost:3009`.
@@ -245,7 +245,7 @@ Antes de probar:
 **A) Crear solicitud de pago** (`POST /api/payments`)
 - URL: `POST $BASE/api/payments`
 - Que enviar en el body: `importe`, `fecha_vto`, `recargo`, `fecha_2do_vto`, `descripcion`, `referencia_externa` (unica), `url_redirect`, `webhook`, `qr`.
-- Importante sobre `webhook`: debe ser una URL publica tuya (ejemplo: `https://<tu-subdominio>.trycloudflare.com/api/payments/webhook`).
+- Importante sobre `webhook`: debe ser una URL publica tuya (ejemplo: `https://matters-issues-penguin-anti.trycloudflare.com/api/payments/webhook`).
 - Error comun: usar fechas vencidas o repetir `referencia_externa`.
 
 **B) Consultar solicitud** (`GET /api/payments/:id`)
@@ -266,33 +266,102 @@ Antes de probar:
 - No lleva body.
 - Solo permite cancelar si el estado local esta en `GENERADA` o `RECHAZADA`.
 
-### Webhook publico con Cloudflare Tunnel (opcional)
+### Webhook público con Cloudflare Tunnel (opcional)
 
-Si queres que Helipagos notifique a tu API local desde Internet, podes exponerla temporalmente con `cloudflared`:
+> ⚠️ Importante para pruebas técnicas
+>
+> Si no querés configurar tu propio túnel con `cloudflared`, podés utilizar este webhook público ya expuesto:
+>
+> ```txt
+> https://matters-issues-penguin-anti.trycloudflare.com/api/payments/webhook
+> ```
+>
+> ⚠️ Las URLs de `trycloudflare.com` son temporales y pueden expirar o cambiar.
+>
+> Si el webhook deja de responder, solicitá una nueva URL pública actualizada.
+
+---
+
+## Crear tu propio túnel con Cloudflare
+
+En caso contrario, también podés crear tu propio túnel con `cloudflared`.
+
+### Descargar Cloudflare Tunnel
+
+Si no lo tenés instalado, podés descargarlo desde:
+
+- Windows:
+  [Cloudflare Tunnel para Windows](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/?utm_source=chatgpt.com)
+
+- Linux / macOS:
+  [Cloudflare Tunnel Documentation](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/?utm_source=chatgpt.com)
+
+---
+
+### Verificar instalación
+
+Luego de instalarlo:
+
+1. Cerrá la terminal actual.
+2. Abrí una nueva terminal.
+3. Verificá que quedó instalado correctamente:
+
+```bash
+cloudflared --version
+```
+
+Si muestra una versión instalada, ya podés continuar.
+
+---
+
+### Ejecutar túnel
 
 ```bash
 cloudflared tunnel --url http://localhost:3009
 ```
 
-`cloudflared` mostrara una URL publica temporal como `https://<tu-subdominio>.trycloudflare.com`.
+`cloudflared` mostrará una URL pública temporal similar a:
 
-Con el prefijo global `api`, el webhook completo que debes enviar al crear el pago es:
-
-```text
-https://<tu-subdominio>.trycloudflare.com/api/payments/webhook
+```txt
+https://<tu-subdominio>.trycloudflare.com
 ```
 
-Notas:
-- La URL de `trycloudflare` cambia cada vez que reinicias el tunel.
-- Mantene la terminal del tunel abierta mientras haces las pruebas.
-- No uses una URL fija de ejemplo en produccion.
+---
 
-Para la evaluacion:
-- Voy a exponer publicamente el endpoint `POST /api/payments/webhook` con Cloudflare Tunnel.
-- Durante la ventana de evaluacion voy a mantener la API y el tunel activos.
-- La URL publica vigente de `trycloudflare` se comparte al evaluador al inicio de la prueba.
-- Esa URL se va a mantener encendida hasta finalizar la evaluacion (si debo reiniciar el tunel, comparto inmediatamente la nueva URL).
-- El endpoint de webhook a compartir siempre tiene este formato: `https://<tu-subdominio>.trycloudflare.com/api/payments/webhook`.
+### Webhook completo
+
+Con el prefijo global `api`, el webhook que debés enviar al crear el pago será:
+
+```txt
+https://matters-issues-penguin-anti.trycloudflare.com/api/payments/webhook
+```
+
+---
+
+### Notas importantes
+
+- La URL de `trycloudflare` cambia cada vez que se reinicia el túnel.
+- Mantené la terminal del túnel abierta mientras realizás las pruebas.
+- No uses una URL temporal de `trycloudflare` en producción.
+
+---
+
+### Para la evaluación técnica
+
+- Voy a exponer públicamente el endpoint `POST /api/payments/webhook` usando Cloudflare Tunnel.
+- Durante la ventana de evaluación voy a mantener la API y el túnel activos.
+- La URL pública actualmente activa es:
+
+```txt
+https://matters-issues-penguin-anti.trycloudflare.com/api/payments/webhook
+```
+
+- Si debo reiniciar el túnel o la URL deja de responder, compartiré inmediatamente una nueva URL pública actualizada.
+- El formato general del endpoint de webhook siempre será:
+
+```txt
+https://<tu-subdominio>.trycloudflare.com/api/payments/webhook
+```
 
 **1. Crear pago**
 

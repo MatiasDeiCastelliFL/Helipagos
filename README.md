@@ -1,25 +1,3 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
-
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
-
-  <p align="center">Un framework progresivo de <a href="http://nodejs.org" target="_blank">Node.js</a> para crear aplicaciones de servidor eficientes y escalables.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
 ## Descripcion
 
@@ -44,6 +22,343 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+Para levantar toda la solucion con Docker (API + PostgreSQL + pgAdmin), ejecutar:
+
+```bash
+docker compose up --build
+```
+
+## Estructura de carpetas y archivos
+
+Vista orientativa del directorio `helipagos/` (archivos de configuracion en la raiz; codigo en `src/`):
+
+```text
+helipagos/
+├── docker/
+│   └── pgadmin/
+│       └── init-pgadmin.sh      # Importa servidor PostgreSQL en pgAdmin al iniciar el contenedor
+├── src/
+│   ├── main.ts                  # Bootstrap: prefijo global `api`, ValidationPipe, puerto
+│   ├── app.module.ts            # TypeORM + import de PaymentsModule
+│   ├── config/
+│   │   ├── entities/
+│   │   │   └── payment.entity.ts
+│   │   ├── encryption/
+│   │   │   └── encript.ts
+│   │   ├── validate/
+│   │   │   └── validate.ts    # Reglas de fechas (fecha_vto, 2do vencimiento)
+│   │   ├── interface/
+│   │   │   └── interface-payment.ts
+│   │   ├── env.config.ts
+│   │   ├── helipagos.config.ts # Axios + handleHelipagosError
+│   │   └── rules.ts
+│   └── payments/
+│       ├── dto/
+│       │   ├── create-payment.dto.ts
+│       │   ├── create-verify.dto.ts
+│       │   ├── get-payment.dto.ts
+│       │   ├── cancel-payment.dto.ts
+│       │   ├── webhook.ts
+│       │   └── helipagos-consulta.dto.ts  # Normaliza respuesta GET Helipagos (array u objeto)
+│       ├── repositories/
+│       │   └── payments.repository.ts     # Persistencia: crear, webhook, cancelar
+│       ├── payments.controller.ts
+│       ├── payments.service.ts
+│       ├── payments.service.spec.ts      # Pruebas unitarias (cancelacion)
+│       └── payments.module.ts
+├── test/
+│   ├── app.e2e-spec.ts
+│   └── jest-e2e.json
+├── Dockerfile
+├── docker-compose.yml
+├── .dockerignore
+├── nest-cli.json
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+├── tsconfig.build.json
+├── body.json                   # Ejemplo de cuerpo JSON para stress tests (autocannon/ab)
+├── pgadmin-servers.json        # Servidor `helipagos` precargado para pgAdmin
+├── .env.example
+└── README.md
+```
+
+| Ruta bajo `src/` | Rol |
+|------------------|-----|
+| `payments/*.controller.ts` | HTTP: rutas, codigos de respuesta, delegacion al servicio |
+| `payments/*.service.ts` | Orquestacion: validaciones de negocio, llamadas a Helipagos, uso del repositorio |
+| `payments/repositories/` | Acceso a datos TypeORM (`save`, `findOne`, etc.) |
+| `payments/dto/` | Contratos de entrada y validacion `class-validator` |
+| `config/entities/` | Modelo de tabla PostgreSQL |
+| `config/helipagos.config.ts` | Cliente HTTP y manejo de errores hacia Helipagos |
+
+## Decisiones de diseño
+
+Resumen de criterios adoptados (complementa las secciones de API, webhook y concurrencia):
+
+1. **Capas Nest:** el controlador solo expone HTTP; el **servicio** concentra reglas y llamadas a Helipagos; el **repositorio** concentra lectura/escritura TypeORM. Facilita pruebas unitarias y evita mezclar Axios con detalles de entidades en un solo archivo.
+2. **`{id}` en rutas propias:** es la **clave primaria local** (`payments.id`). Helipagos se consulta siempre con el **`id_sp`** guardado en esa fila. Asi se evita ambigüedad con la consigna y se documenta el contrato para quien consume la API.
+3. **Errores hacia Helipagos:** `handleHelipagosError` clasifica timeouts, 5xx y fallos de red en **503** con un mensaje unificado; el flujo de los servicios no queda con ramas sin cerrar en TypeScript.
+4. **Webhook:** ante `id_sp` inexistente se responde **200** con cuerpo minimo y **log** de advertencia, para no disparar reintentos masivos del notificador. Si el pago ya estaba **PROCESADA**, **200** idempotente sin reescribir la fila.
+5. **Concurrencia:** varias notificaciones sobre la misma fila se serializan en PostgreSQL; el diseno del webhook prioriza payloads repetibles del proveedor (ver seccion *Estrategia ante concurrencia*).
+6. **Datos sensibles en BD:** `codigo_barra` y `qr_data` se persisten **cifrados**; la respuesta HTTP de creacion no los reexpone en claro.
+7. **Esquema en desarrollo:** TypeORM usa **`synchronize: true`** cuando `PRODUCTION` no es `true`, de modo que al levantar Nest contra una base vacia se crean/ajustan tablas a partir de las entities. En produccion real conviene **migraciones** (ver *Roadmap*).
+
+## API de pagos (Helipagos + PostgreSQL)
+
+Prefijo global: `api` (`src/main.ts`). Recurso principal:
+
+```http
+POST /api/payments
+Content-Type: application/json
+```
+
+En Docker la URL base suele ser `http://localhost:3009` (segun `PORT` en `.env`). En local, el mismo `PORT` del archivo de entorno.
+
+### Rutas expuestas
+
+| Metodo | Ruta | HTTP exito | Descripcion |
+|--------|------|------------|-------------|
+| POST | `/api/payments` | **201** | Crea la solicitud en Helipagos y persiste en PostgreSQL. |
+| GET | `/api/payments/:id` | **200** | Busca en BD por **id interno** (`payments.id`). La llamada a Helipagos usa el **`id_sp`** de esa fila sobre `GET /api/solicitud_pago/v1/get_solicitud_pago?id={id_sp}`. |
+| PUT | `/api/payments/:id` | **200** | Cancela la solicitud (si estado local es `GENERADA` o `RECHAZADA`) y marca `CANCELADA` en BD. Internamente consume `PUT .../cancelacion_solicitud_pago?id={id_sp}` en Helipagos. |
+| POST | `/api/payments/webhook` | **200** | Notificacion de pago (p. ej. `estado` `PROCESADA`). |
+
+### Formato de errores (NestJS)
+
+Las excepciones HTTP responden en JSON similar a:
+
+```json
+{
+  "statusCode": 400,
+  "message": "texto o lista de errores de validacion",
+  "error": "Bad Request"
+}
+```
+
+| Codigo | `error` (tipico) | Origen / mensajes destacados |
+|--------|------------------|------------------------------|
+| **400** | Bad Request | DTO (`class-validator`), propiedades no permitidas, fechas en `fechaValidate`: *La fecha de vencimiento no puede ser anterior al día de hoy*; *La fecha de vencimiento 2do debe ser mayor que la fecha de vencimiento*. |
+| **404** | Not Found | `GET /api/payments/:id` o `PUT /api/payments/:id` sin fila: *Pago no encontrado*. |
+| **409** | Conflict | Crear: *La referencia externa ya se encuentra duplicada* o *El id_sp ya se encuentra duplicado*; `GET` / cancelar (`PUT`): *El id no es un número válido*; webhook: *El valor del estado no es valido para el webhook de pago, debe ser PROCESADA*; cancelar no permitido: *Solo se puede cancelar si el pago está en GENERADA o RECHAZADA*. |
+| **503** | Service Unavailable | Helipagos no alcanzable: timeout, **5xx** de Helipagos, red (`ENOTFOUND`, `ECONNREFUSED`, `ETIMEDOUT`, `ECONNRESET`). Mensaje: **Helipagos no disponible temporalmente** (`handleHelipagosError` en `src/config/helipagos.config.ts`). Tambien **503** posible si `ENCRYPTION_SECRET` no cumple politica en `src/config/encryption/encript.ts`. |
+| **Otros** | (varios) | Respuestas **4xx** de Helipagos no mapeadas a 503 se pueden propagar; revisar cuerpo y logs sin exponer secretos. |
+
+Flujo HTTP: `createPayment` y `getPayment` delegan errores de Axios en `handleHelipagosError` (siempre relanza tras clasificar), asi el `catch` cierra el tipo y no queda respuesta implicita sin resolver.
+
+### Como probar con curl
+
+Defini `BASE` (bash: `export BASE=http://localhost:3009`; PowerShell: `$env:BASE="http://localhost:3009"`). Opcional: `-w "\nHTTP:%{http_code}\n"` al final del `curl` para ver el codigo HTTP.
+
+**1. Crear pago**
+
+```bash
+curl --request POST \
+  --url http://localhost:3009/api/payments \
+  --header 'Authorization: Bearer + Token' \
+  --header 'Content-Type: application/json' \
+  --header 'User-Agent: insomnia/12.5.0' \
+  --data '{
+    "importe": 1,
+    "fecha_vto": "2026-05-08",
+    "recargo": 123457,
+    "fecha_2do_vto": "2026-05-10",
+    "descripcion": "Prueba de Pago",
+    "referencia_externa": "TEST",
+    "referencia_externa_2": "TEST",
+    "url_redirect": "https://www.helipagos.com",
+    "webhook": "https://webhook.site/d8cced7a-2b90-4a21-930a-c52eaff1cd51",
+    "qr": true
+}'
+```
+
+**2. Consultar pago** (`:id` = clave primaria local en `payments`, no el `id_sp`)
+
+```bash
+curl --request GET \
+  --url "$BASE/api/payments/1" \
+  --header 'Authorization: Bearer + Token' \
+  --header 'User-Agent: insomnia/12.5.0'
+```
+
+Cuerpo exitoso: `local` (registro BD), `helipagos` (objeto normalizado si Helipagos devuelve array con datos u objeto; `null` si responde `[]`), `estadoHelipagos` (prioriza `estado_pago`, si no `estado` del remoto).
+
+**3. Webhook**
+
+```bash
+curl -s -X POST "$BASE/api/payments/webhook" \
+  -H "Content-Type: application/json" \
+  -d "{\"id_sp\":123456,\"estado\":\"PROCESADA\",\"referencia_externa\":\"REF-UNICA-001\",\"medio_pago\":\"Visa\",\"importe_abonado\":\"20\",\"fecha_importe\":\"2026-05-08 10:00:00\"}"
+```
+
+- Sin fila para ese `id_sp`: **200** `{ "acknowledged": true }` y log de advertencia.
+- Pago ya `PROCESADA`: **200** `{ "acknowledged": true, "alreadyProcessed": true }`.
+- Actualizacion correcta: **200** con `message`: *Estado en BD actualizado a PROCESADA*.
+
+**4. Cancelar pago** (`PUT`; `:id` = PK local, igual que en `GET`)
+
+```bash
+curl --request PUT \
+  --url http://localhost:3009/api/payments/1 \
+  --header 'Authorization: Bearer + Token' \
+  --header 'User-Agent: insomnia/12.5.0'
+```
+
+- Si existe y estado local es `GENERADA` o `RECHAZADA`: **200** con `message`: *Pago cancelado correctamente* y estado local `CANCELADA`.
+- Si no existe: **404** (*Pago no encontrado*).
+- Si el estado no permite cancelacion: **409**.
+
+### Variables de entorno relacionadas
+
+Ademas de las credenciales de PostgreSQL, para este flujo necesitas:
+
+| Variable | Uso |
+|----------|-----|
+| `URL_TEST` o `URL_PRODUCTION` | Host de Helipagos (sandbox o produccion) sin slash final |
+| `URL_PREFIX` | Segmento de path que precede al recurso (ej. `api` => base `https://sandbox.../api`) |
+| `TOKEN_SECRET` | Se envia como `Authorization: Bearer ...` en la llamada a Helipagos |
+| `ENCRYPTION_SECRET` | Cifrado de `codigo_barra` y `qr_data` al persistir (debe cumplir la politica fuerte definida en codigo) |
+| `helipagos.config` | Incluye `timeout` (ms) para la peticion HTTP a Helipagos |
+
+#### Guia rapida del `.env` (que hace cada variable y como evitar fallos)
+
+Parti de `.env.example` y completa valores reales:
+
+```bash
+cp .env.example .env
+```
+
+Bloques y variables clave:
+
+- **API Nest**
+  - `PORT`: puerto HTTP de tu API (ej. `3009`).
+  - `USE_DOCKER`: `true` cuando la API corre dentro de Docker Compose; `false` en local.
+
+- **Conexion de Nest a PostgreSQL**
+  - `DB_HOST`: host usado con `USE_DOCKER=false` (ej. `localhost`).
+  - `DB_HOST_DOCKER`: host usado con `USE_DOCKER=true` (en compose suele ser `postgres`).
+  - `DB_PORT`: puerto de PostgreSQL (usualmente `5432`).
+  - `DB_USER`, `DB_PASSWORD`, `DB_NAME`: credenciales/base que usa TypeORM.
+
+- **Inicializacion del contenedor Postgres (docker)**
+  - `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_DB`: usuario/password/base inicial del contenedor.
+  - `POSTGRES_HOST_AUTH_METHOD`: en esta demo se usa `trust` para simplificar pruebas.
+
+- **pgAdmin (solo interfaz web)**
+  - `PGADMIN_DEFAULT_EMAIL`, `PGADMIN_DEFAULT_PASSWORD`: login de pgAdmin.
+
+- **Integracion Helipagos**
+  - `PRODUCTION`: `true` usa `URL_PRODUCTION`; `false` usa `URL_TEST`.
+  - `URL_TEST`, `URL_PRODUCTION`: base URL Helipagos (sin slash final).
+  - `URL_PREFIX`: prefijo de Helipagos (en homologacion suele ser `api`).
+  - `TOKEN_SECRET`: token Bearer enviado en `Authorization`.
+  - `WEBHOOK_SECRET`: reservado para validacion/firma de webhook si agregas esa capa.
+
+- **Seguridad local**
+  - `ENCRYPTION_SECRET`: clave para cifrar `codigo_barra` y `qr_data` antes de guardar en BD.
+
+Errores comunes por `.env` mal configurado:
+
+- **`Helipagos no disponible temporalmente` (503)**: `URL_TEST/URL_PRODUCTION` incorrecta, `URL_PREFIX` incorrecto, timeout bajo, o red caida.
+- **401/403 Helipagos**: `TOKEN_SECRET` invalido o vencido.
+- **Error de conexion a DB**: combinacion incorrecta de `USE_DOCKER` con `DB_HOST`/`DB_HOST_DOCKER`, o credenciales DB invalidas.
+- **Error de cifrado al crear pago**: `ENCRYPTION_SECRET` ausente o no valida para la politica definida en `src/config/encryption/encript.ts`.
+
+Las rutas mock de Helipagos usadas por este servicio son:
+
+- `POST {URL_TEST|URL_PRODUCTION}/{URL_PREFIX}/solicitud_pago/v1/checkout/solicitud_pago` (crear)
+- `GET {URL_TEST|URL_PRODUCTION}/{URL_PREFIX}/solicitud_pago/v1/get_solicitud_pago?id={id_sp}` (consultar)
+- `PUT {URL_TEST|URL_PRODUCTION}/{URL_PREFIX}/solicitud_pago/v1/checkout/cancelacion_solicitud_pago?id={id_sp}` (cancelar)
+
+### Cuerpo de la peticion (JSON)
+
+Campos validados con `class-validator` (`CreatePaymentDto`):
+
+| Campo | Tipo | Notas |
+|-------|------|--------|
+| `importe` | number entero | >= 1 |
+| `fecha_vto` | string | ISO fecha `YYYY-MM-DD` |
+| `recargo` | number entero | >= 1 |
+| `fecha_2do_vto` | string | ISO fecha `YYYY-MM-DD`, debe ser posterior a `fecha_vto` (regla de negocio) |
+| `descripcion` | string | 1..255 caracteres |
+| `referencia_externa` | string | 1..255, unica en base local |
+| `referencia_externa_2` | string | 1..255 |
+| `url_redirect` | string | 1..255 |
+| `webhook` | string | 1..255, URL de notificacion; se guarda junto al pago |
+| `qr` | boolean | |
+
+No se admiten propiedades extra (`forbidNonWhitelisted` en `ValidationPipe`).
+
+### Respuesta exitosa
+
+Cuerpo tipico devuelto por el servicio tras crear y persistir el pago:
+
+```json
+{
+  "message": "Pago creado correctamente",
+  "data": {
+    "id_sp": 123456,
+    "checkout_url": "https://...",
+    "estado": "GENERADA"
+  }
+}
+```
+
+Los datos sensibles que devuelve Helipagos (`codigo_barra`, `qr_data`) se almacenan cifrados en PostgreSQL; la respuesta HTTP de tu API no los incluye en este formato.
+
+> Resumen de codigos: ver tabla **Formato de errores (NestJS)** mas arriba. El `POST /api/payments` responde **201** al crear (`@HttpCode(HttpStatus.CREATED)`).
+
+### Webhook de pago (`POST /api/payments/webhook`)
+
+| Aspecto | Comportamiento |
+|--------|----------------|
+| Codigo HTTP exitoso | **200** (`@HttpCode(HttpStatus.OK)` en `payments.controller.ts`) |
+| `id_sp` sin fila en BD | **200** con cuerpo `{ "acknowledged": true }`; **no** se responde 404 para no inducir reintentos agresivos del notificador. Se registra un **warning** en log (`PaymentsService`) con `id_sp`, `referencia_externa` y `estado` para investigacion. |
+| Payload valido (`estado === PROCESADA` y pago encontrado) | Se actualiza la fila vía `save` en el repositorio y se devuelve mensaje de actualizacion. |
+| Pago ya estaba `PROCESADA` (idempotencia / reintentos) | **200** con `{ "acknowledged": true, "alreadyProcessed": true }` sin volver a escribir; evita **409** en stress de muchas entregas del mismo evento. |
+| Validacion / estado invalido | Puede responder **400** (DTO) o **409** si `estado` no es `PROCESADA` (no es el escenario 10). |
+
+### Estrategia ante concurrencia (escenarios 10 y 11)
+
+- **Varios webhooks para distintos `id_sp`:** cada request modifica una fila distinta; PostgreSQL aplica bloqueo a nivel **fila**; TypeORM `save` emite `UPDATE` por PK. No hay contencion cruzada entre pagos distintos mas alla del pool de conexiones.
+- **Varios webhooks concurrentes para el mismo `id_sp`:** Postgres serializa `UPDATE` sobre la misma fila. Con **payloads identicos** (mismo `PROCESADA` y mismos campos), el estado final es coherente e **idempotente**. Si dos payloads **difieren** en campos opcionales y llegan muy pegados, puede predominar el ultimo `save` (comportamiento habitual sin `SELECT FOR UPDATE`; aceptable si el proveedor envia el mismo cuerpo en reintentos).
+- **Deadlocks:** con un unico `UPDATE` por transaccion y una sola fila por `id_sp`, el patron de bloqueo es lineal; riesgo de deadlock entre estos webhooks es **muy bajo**. Apareceria mas si hubiera otras rutas que bloquearan las mismas filas en **orden distinto** (no es el caso del flujo actual).
+- **Stress 50-60 concurrentes:** Nest atiende requests en paralelo; la base serializa por fila. **Herramienta usada para validar:** [autocannon](https://github.com/mcollina/autocannon) (benchmark HTTP). Ejemplo (ajusta `PORT`, `id_sp` y cuerpo a un pago `GENERADA` existente en BD):
+
+```bash
+npx autocannon -m POST -H "Content-Type: application/json" \
+  -b "{\"id_sp\":706047,\"estado\":\"PROCESADA\",\"referencia_externa\":\"TEST3\"}" \
+  -c 60 -d 5 http://localhost:3009/api/payments/webhook
+```
+
+Interpretacion: `-c 60` es hasta 60 conexiones concurrentes; `-d 5` duracion en segundos. Revisar que todos los codigos sean **2xx** (en especial **200**), la fila en BD quede `PROCESADA` una sola vez sin valores incoherentes, y los logs sin errores. Alternativa establecida: **Apache Bench** (`ab -n 200 -c 60 -p body.json -T application/json ...`).
+
+- Ajustar pool de TypeORM si el entorno limita conexiones.
+
+#### Evidencia de ejecucion (completar antes de entregar)
+
+Completa este bloque con la corrida real para dejar trazabilidad al evaluador:
+
+```text
+Fecha/hora:
+Ambiente (local/docker + URL webhook publico):
+Herramienta: autocannon
+Comando usado:
+Total requests:
+2xx:
+4xx:
+5xx:
+Errores de red/timeouts:
+Estado final en BD del id_sp probado:
+Observaciones:
+```
+
+### Como validar manualmente el escenario 503 (Helipagos caido / timeout)
+
+1. **Timeout:** reduce temporalmente `timeout` en `src/config/helipagos.config.ts` (por ejemplo `1` ms), reinicia la app y reenvia el POST; debe responder **503** sin crear fila inconsistente si Helipagos no respondio OK.
+2. **DNS / red:** usa temporalmente en `.env` un `URL_TEST` con dominio inexistente; debe clasificarse como error de red y mapear a **503** con el mensaje configurado.
+3. Restaura siempre `timeout` y URL correctos despues de la prueba.
+
 ## Docker (Nest + PostgreSQL + pgAdmin)
 
 La app usa un unico archivo `.env` y la variable `USE_DOCKER` para decidir el host de base:
@@ -52,6 +367,12 @@ La app usa un unico archivo `.env` y la variable `USE_DOCKER` para decidir el ho
 - `USE_DOCKER=true` => usa `DB_HOST_DOCKER` (contenedor `postgres`)
 
 `docker-compose` fuerza `USE_DOCKER=true` en el servicio `app`.
+
+### Inicializacion de la base de datos
+
+- **Con Docker:** al arrancar el servicio `postgres`, las variables `POSTGRES_USER`, `POSTGRES_PASSWORD` y `POSTGRES_DB` del `.env` crean usuario y base inicial; no hace falta un `CREATE DATABASE` manual para esa demo.
+- **Esquema y tablas:** la primera vez que Nest se conecta con `PRODUCTION !== 'true'`, TypeORM **sincroniza** el esquema desde `payment.entity.ts` y el resto de entities cargadas (`synchronize` en `src/app.module.ts`). No se incluye un `init.sql` separado: el modelo vivo es el codigo.
+- **Solo PostgreSQL vacio:** basta con que exista la base configurada en `DB_NAME` (en compose suele coincidir con `POSTGRES_DB`); las tablas aparecen al iniciar la API.
 
 1) Crear archivo de entorno desde el ejemplo:
 
@@ -153,6 +474,16 @@ $ npm run test:e2e
 # cobertura de pruebas
 $ npm run test:cov
 ```
+
+## Roadmap
+
+Mejoras posibles sobre la base actual (no bloquean la demo; sirven para evolucionar el servicio):
+
+1. **Webhook:** validar origen del evento (firma, `WEBHOOK_SECRET`, IP allowlist) antes de persistir cambios.
+2. **Pruebas:** ampliar e2e en `test/` para flujo crear → consultar → webhook → cancelar, con mocks de Helipagos.
+3. **Base de datos:** migraciones TypeORM versionadas para entornos compartidos y despliegues repetibles.
+4. **Observabilidad:** health checks (`/health`), correlacion de `id_sp` en logs estructurados, metricas opcionales.
+5. **Resiliencia:** reintentos con backoff selectivo en llamadas a Helipagos donde el contrato lo permita; afinar pool de conexiones bajo carga.
 
 ## Despliegue
 

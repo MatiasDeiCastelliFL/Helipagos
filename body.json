@@ -1,8 +1,1 @@
-{
-  "id_sp": 706047,
-  "estado": "PROCESADA",
-  "referencia_externa": "REFERENCIA_EXTERNA",
-  "medio_pago": "Visa",
-  "importe_abonado": "3000",
-  "fecha_importe": "Sat Jul 17 14:12:21 ART 2021"
-}
+﻿{"id_sp":706067,"estado":"PROCESADA","referencia_externa":"TEST"}

@@ -81,7 +81,7 @@ export class PaymentsRepository {
 
   async updatePayment(payment: Payment, webhook: WebhookDto): Promise<object> {
     payment.estado = webhook.estado?.trim().toUpperCase();
-    payment.referencia_externa = webhook.referencia_externa;
+    // referencia_externa se mantiene inmutable para evitar colisiones de unique key.
     payment.medio_pago = webhook.medio_pago ?? null;
     payment.importe_abonado = webhook.importe_abonado ?? null;
     payment.fecha_importe = webhook.fecha_importe ?? null;

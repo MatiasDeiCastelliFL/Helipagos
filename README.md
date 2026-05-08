@@ -120,9 +120,14 @@ En Docker la URL base suele ser `http://localhost:3009` (segun `PORT` en `.env`)
 | Metodo | Ruta | HTTP exito | Descripcion |
 |--------|------|------------|-------------|
 | POST | `/api/payments` | **201** | Crea la solicitud en Helipagos y persiste en PostgreSQL. |
-| GET | `/api/payments/:id` | **200** | Busca en BD por **id interno** (`payments.id`). La llamada a Helipagos usa el **`id_sp`** de esa fila sobre `GET /api/solicitud_pago/v1/get_solicitud_pago?id={id_sp}`. |
+| GET | `/api/payments/:id` | **200** | Busca en BD por **id interno** (`payments.id`). La llamada a Helipagos usa el **`id_sp`** de esa fila sobre `POST /api/solicitud_pago/v1/get_solicitud_pago?id={id_sp}`. |
 | PUT | `/api/payments/:id` | **200** | Cancela la solicitud (si estado local es `GENERADA` o `RECHAZADA`) y marca `CANCELADA` en BD. Internamente consume `PUT .../cancelacion_solicitud_pago?id={id_sp}` en Helipagos. |
 | POST | `/api/payments/webhook` | **200** | Notificacion de pago (p. ej. `estado` `PROCESADA`). |
+
+> **Aclaracion de metodo en consulta Helipagos:**
+> Aunque la consigna del servicio interno se implementa como `GET /api/payments/:id`, durante la integracion con Helipagos sandbox se verifico que la ruta `/solicitud_pago/v1/get_solicitud_pago` no acepta `GET`.
+> Al probar con `GET`, Helipagos respondio `405 Method Not Allowed` con header `Allow: POST`.
+> Por este motivo, la llamada **interna** hacia Helipagos se implemento con **`POST`** (manteniendo el endpoint publico propio en `GET`, segun la consigna).
 
 ### Formato de errores (NestJS)
 
@@ -264,7 +269,7 @@ Errores comunes por `.env` mal configurado:
 Las rutas mock de Helipagos usadas por este servicio son:
 
 - `POST {URL_TEST|URL_PRODUCTION}/{URL_PREFIX}/solicitud_pago/v1/checkout/solicitud_pago` (crear)
-- `GET {URL_TEST|URL_PRODUCTION}/{URL_PREFIX}/solicitud_pago/v1/get_solicitud_pago?id={id_sp}` (consultar)
+- `POST {URL_TEST|URL_PRODUCTION}/{URL_PREFIX}/solicitud_pago/v1/get_solicitud_pago?id={id_sp}` (consultar)
 - `PUT {URL_TEST|URL_PRODUCTION}/{URL_PREFIX}/solicitud_pago/v1/checkout/cancelacion_solicitud_pago?id={id_sp}` (cancelar)
 
 ### Cuerpo de la peticion (JSON)
@@ -282,7 +287,7 @@ Campos validados con `class-validator` (`CreatePaymentDto`):
 | `referencia_externa_2` | string | 1..255 |
 | `url_redirect` | string | 1..255 |
 | `webhook` | string | 1..255, URL de notificacion; se guarda junto al pago |
-| `qr` | boolean | |
+| `qr` | boolean | En JSON debe ir sin comillas: `true` o `false` (no `"true"` / `"false"` como string). |
 
 No se admiten propiedades extra (`forbidNonWhitelisted` en `ValidationPipe`).
 
@@ -334,20 +339,20 @@ Interpretacion: `-c 60` es hasta 60 conexiones concurrentes; `-d 5` duracion en 
 
 #### Evidencia de ejecucion (completar antes de entregar)
 
-Completa este bloque con la corrida real para dejar trazabilidad al evaluador:
+Corrida realizada para dejar trazabilidad al evaluador:
 
 ```text
-Fecha/hora:
-Ambiente (local/docker + URL webhook publico):
+Fecha/hora: 2026-05-08 09:59 (UTC-3)
+Ambiente (local/docker + URL webhook publico): Local/Docker, http://localhost:3009/api/payments/webhook
 Herramienta: autocannon
-Comando usado:
-Total requests:
-2xx:
-4xx:
-5xx:
-Errores de red/timeouts:
-Estado final en BD del id_sp probado:
-Observaciones:
+Comando usado: npx autocannon -m POST -H "Content-Type: application/json" -i body.json -c 60 -d 5 http://localhost:3009/api/payments/webhook
+Total requests: 11k requests en 5.03s (aprox.)
+2xx: sin registros de non-2xx en la salida de la corrida
+4xx: 0
+5xx: 0
+Errores de red/timeouts: 0
+Estado final en BD del id_sp probado: PROCESADA
+Observaciones: prueba concurrente con 60 conexiones durante 5 segundos, latencia promedio 25.77 ms, sin errores reportados por autocannon.
 ```
 
 ### Como validar manualmente el escenario 503 (Helipagos caido / timeout)

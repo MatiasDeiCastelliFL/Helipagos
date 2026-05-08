@@ -282,7 +282,7 @@ Campos validados con `class-validator` (`CreatePaymentDto`):
 | `referencia_externa_2` | string | 1..255 |
 | `url_redirect` | string | 1..255 |
 | `webhook` | string | 1..255, URL de notificacion; se guarda junto al pago |
-| `qr` | boolean | |
+| `qr` | boolean | En JSON debe ir sin comillas: `true` o `false` (no `"true"` / `"false"` como string). |
 
 No se admiten propiedades extra (`forbidNonWhitelisted` en `ValidationPipe`).
 

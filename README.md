@@ -245,7 +245,7 @@ Antes de probar:
 **A) Crear solicitud de pago** (`POST /api/payments`)
 - URL: `POST $BASE/api/payments`
 - Que enviar en el body: `importe`, `fecha_vto`, `recargo`, `fecha_2do_vto`, `descripcion`, `referencia_externa` (unica), `url_redirect`, `webhook`, `qr`.
-- Importante sobre `webhook`: debe ser una URL publica tuya (ejemplo: `https://matters-issues-penguin-anti.trycloudflare.com/api/payments/webhook`).
+- Importante sobre `webhook`: debe ser una URL publica tuya (ejemplo: `https://cameras-interstate-nav-xhtml.trycloudflare.com/api/payments/webhook`).
 - Error comun: usar fechas vencidas o repetir `referencia_externa`.
 
 **B) Consultar solicitud** (`GET /api/payments/:id`)
@@ -273,7 +273,7 @@ Antes de probar:
 > Si no querés configurar tu propio túnel con `cloudflared`, podés utilizar este webhook público ya expuesto:
 >
 > ```txt
-> https://matters-issues-penguin-anti.trycloudflare.com/api/payments/webhook
+> https://cameras-interstate-nav-xhtml.trycloudflare.com/api/payments/webhook
 > ```
 >
 > ⚠️ Las URLs de `trycloudflare.com` son temporales y pueden expirar o cambiar.
@@ -333,7 +333,7 @@ https://<tu-subdominio>.trycloudflare.com
 Con el prefijo global `api`, el webhook que debés enviar al crear el pago será:
 
 ```txt
-https://matters-issues-penguin-anti.trycloudflare.com/api/payments/webhook
+https://cameras-interstate-nav-xhtml.trycloudflare.com/api/payments/webhook
 ```
 
 ---
@@ -353,7 +353,7 @@ https://matters-issues-penguin-anti.trycloudflare.com/api/payments/webhook
 - La URL pública actualmente activa es:
 
 ```txt
-https://matters-issues-penguin-anti.trycloudflare.com/api/payments/webhook
+https://cameras-interstate-nav-xhtml.trycloudflare.com/api/payments/webhook
 ```
 
 - Si debo reiniciar el túnel o la URL deja de responder, compartiré inmediatamente una nueva URL pública actualizada.
@@ -379,7 +379,7 @@ curl --request POST \
     "referencia_externa": "TEST",
     "referencia_externa_2": "TEST",
     "url_redirect": "https://www.helipagos.com",
-    "webhook": "https://matters-issues-penguin-anti.trycloudflare.com/api/payments/webhook",
+    "webhook": "https://cameras-interstate-nav-xhtml.trycloudflare.com/api/payments/webhook",
     "qr": true
 }'
 ```

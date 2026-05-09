@@ -2,6 +2,7 @@ import {
   Injectable,
   Logger,
   ConflictException,
+  HttpException,
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -51,6 +52,9 @@ export class PaymentsService {
       }
       return await this.paymentsRepository.createPayment(data);
     } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       handleHelipagosError(error);
     }
   }
@@ -81,6 +85,9 @@ export class PaymentsService {
           null,
       };
     } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       handleHelipagosError(error);
     }
   }
@@ -151,6 +158,9 @@ export class PaymentsService {
       }
       throw new ConflictException('Error al cancelar el pago');
     } catch (error: unknown) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
       handleHelipagosError(error);
     }
   }

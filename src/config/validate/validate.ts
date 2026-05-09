@@ -1,56 +1,43 @@
-import { BadRequestException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 
-function parseDateOnlyLocal(isoDate: string): Date | null {
-  const parts = isoDate.split('-').map(Number);
-  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) {
-    return null;
-  }
-  const [y, m, d] = parts;
-  if (y === undefined || m === undefined || d === undefined) {
-    return null;
-  }
-  return new Date(y, m - 1, d, 0, 0, 0, 0);
-}
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-function startOfTodayLocal(): Date {
-  const n = new Date();
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate(), 0, 0, 0, 0);
+/** Calendario UTC `YYYY-MM-DD` (mismo criterio que suele usar Helipagos al parsear la fecha). */
+function todayIsoDateUtc(): string {
+  return new Date().toISOString().slice(0, 10);
 }
 
 /**
- * fecha_vto no puede ser anterior al día de hoy (calendario del proceso Node).
- * Usa >= para permitir vencimiento "hoy" (Helipagos / negocio) y evitar falsos
- * negativos en Docker UTC cuando el día ya cambió respecto a tu zona local.
+ * Helipagos trata `YYYY-MM-DD` como inicio de ese día en UTC (00:00:00Z) y lo
+ * compara con la hora actual. Ese instante es siempre anterior a cualquier
+ * momento del mismo día calendario UTC, así que `fecha_vto` debe ser
+ * estrictamente posterior al día UTC actual (en la práctica, desde mañana en UTC).
  */
 export const validateFechaVto = (fecha_vto: string) => {
-  const inicioVto = parseDateOnlyLocal(fecha_vto);
-  if (!inicioVto) {
+  if (!ISO_DATE.test(fecha_vto)) {
     return false;
   }
-  const hoyInicio = startOfTodayLocal();
-  return inicioVto.getTime() >= hoyInicio.getTime();
+  return fecha_vto > todayIsoDateUtc();
 };
+
 export const validateFechaVto2do = (
   fecha_vto_2do: string,
   fecha_vto: string,
 ) => {
-  const fecha2 = parseDateOnlyLocal(fecha_vto_2do);
-  const fecha1 = parseDateOnlyLocal(fecha_vto);
-  if (!fecha2 || !fecha1) {
+  if (!ISO_DATE.test(fecha_vto_2do) || !ISO_DATE.test(fecha_vto)) {
     return false;
   }
-
-  return fecha2.getTime() >= fecha1.getTime();
+  return fecha_vto_2do > fecha_vto;
 };
 
 export const fechaValidate = (fecha_vto: string, fecha_vto_2do: string) => {
   if (!validateFechaVto(fecha_vto)) {
-    throw new BadRequestException(
-      'La fecha de vencimiento no puede ser anterior al día de hoy',
+    throw new ConflictException(
+      'La fecha de vencimiento debe ser posterior al día actual (criterio UTC, alineado con Helipagos)',
     );
   }
   if (!validateFechaVto2do(fecha_vto_2do, fecha_vto)) {
-    throw new BadRequestException(
+    throw new ConflictException(
       'La fecha de vencimiento 2do debe ser mayor que la fecha de vencimiento',
     );
   }
